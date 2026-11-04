@@ -29,18 +29,18 @@ export default function FanControlPage() {
   const [chartData, setChartData] = useState<TelemetryPoint[]>([]);
   const [usageTime, setUsageTime] = useState<number>(0);
 
-  // Fetch telemetry every 3 seconds
+  // Fetch telemetry every 3 seconds from Next.js Firebase API
   useEffect(() => {
     const fetchStatus = async () => {
       try {
         const res = await fetch("/api/fan", { cache: "no-store" });
         const data = await res.json();
         
-        setTemperature(data.temperature);
-        setHumidity(data.humidity);
+        if (data.temperature) setTemperature(data.temperature);
+        if (data.humidity) setHumidity(data.humidity);
         setFanOn(data.fanStatus === "ON");
-        setSpeedValue(data.speed);
-        setSystemMode(data.mode);
+        if (data.speed !== undefined) setSpeedValue(data.speed);
+        if (data.mode) setSystemMode(data.mode);
 
         const now = new Date();
         const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
@@ -53,23 +53,23 @@ export default function FanControlPage() {
         setChartData((prev) => {
           const newPoint: TelemetryPoint = {
             time: timeStr,
-            temperature: data.temperature,
-            humidity: data.humidity,
-            powerWatts: estimatedWatts,
-            pwmPercent: dutyPercentage,
+            temperature: data.temperature || temperature,
+            humidity: data.humidity || humidity,
+            powerWatts: estimatedWatts || 0,
+            pwmPercent: dutyPercentage || 0,
           };
           const updated = [...prev, newPoint];
           return updated.slice(-12);
         });
       } catch (err) {
-        console.error("ESP32 sync error:", err);
+        console.error("Firebase sync error:", err);
       }
     };
 
     fetchStatus();
     const interval = setInterval(fetchStatus, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [temperature, humidity]);
 
   // Track Fan Usage Time (Timer)
   useEffect(() => {
